@@ -6,7 +6,7 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {CommonModule} from '@angular/common';
+import {CommonModule, Location} from '@angular/common';
 import {ChangeDetectionStrategy, Component, ContentChild, NgModule, TemplateRef, Type, ViewChild, ViewContainerRef} from '@angular/core';
 import {ComponentFixture, fakeAsync, TestBed, tick} from '@angular/core/testing';
 import {Router} from '@angular/router';
@@ -186,6 +186,48 @@ describe('Integration', () => {
 
          expect(fixture.nativeElement.innerHTML).toContain('isActive: true');
        }));
+  });
+
+  describe('useHash', () => {
+    xit('should restore hash to match current route - #28561', fakeAsync(() => {
+          @Component({selector: 'root-cmp', template: `<router-outlet></router-outlet>`})
+          class RootCmp {
+          }
+
+          @Component({template: 'simple'})
+          class SimpleCmp {
+          }
+
+          TestBed.configureTestingModule({
+            imports: [RouterTestingModule.withRoutes([
+              {path: '', component: SimpleCmp},
+              {path: 'one', component: SimpleCmp, canActivate: ['returnRootUrlTree']}
+            ])],
+            declarations: [SimpleCmp, RootCmp],
+            providers: [
+              {
+                provide: 'returnRootUrlTree',
+                useFactory: (router: Router) => () => {
+                  return router.parseUrl('/');
+                },
+                deps: [Router]
+              },
+            ],
+          });
+
+          const router = TestBed.inject(Router);
+          const location = TestBed.inject(Location);
+
+          router.navigateByUrl('/');
+          // Will setup location change listeners
+          const fixture = createRoot(router, RootCmp);
+
+          (<any>location).simulateHashChange('/one');
+          advance(fixture);
+
+          expect(location.path()).toEqual('/');
+          expect((<any>location).urlChanges).toEqual(['replace: /', 'hash: /one', 'replace: /']);
+        }));
   });
 });
 
